@@ -1,14 +1,15 @@
 use enigo::{
+    Button as EnigoButton,
     Direction::{Click, Press, Release},
-    Enigo, Key, Keyboard, Settings,
+    Enigo, Key, Keyboard, Mouse, Settings,
 };
-use xbuttonmousecontrol_core::{AppError, KeyEmitter, KeySpec};
+use xbuttonmousecontrol_core::{AppError, KeySpec, MouseButton, OutputEmitter};
 
-pub struct EnigoKeyEmitter {
+pub struct EnigoOutputEmitter {
     inner: Enigo,
 }
 
-impl EnigoKeyEmitter {
+impl EnigoOutputEmitter {
     pub fn new() -> Result<Self, AppError> {
         let inner = Enigo::new(&Settings::default())
             .map_err(|e| AppError::Port(format!("cannot init enigo: {e}")))?;
@@ -16,26 +17,52 @@ impl EnigoKeyEmitter {
     }
 }
 
-impl KeyEmitter for EnigoKeyEmitter {
-    fn press(&mut self, key: &KeySpec) -> Result<(), AppError> {
-        let key = parse_key(&key.0)?;
+impl OutputEmitter for EnigoOutputEmitter {
+    fn key_press(&mut self, key: &KeySpec) -> Result<(), AppError> {
         self.inner
-            .key(key, Press)
-            .map_err(|e| AppError::Port(format!("press failed: {e}")))
+            .key(parse_key(&key.0)?, Press)
+            .map_err(|e| AppError::Port(format!("key_press failed: {e}")))
     }
 
-    fn release(&mut self, key: &KeySpec) -> Result<(), AppError> {
-        let key = parse_key(&key.0)?;
+    fn key_release(&mut self, key: &KeySpec) -> Result<(), AppError> {
         self.inner
-            .key(key, Release)
-            .map_err(|e| AppError::Port(format!("release failed: {e}")))
+            .key(parse_key(&key.0)?, Release)
+            .map_err(|e| AppError::Port(format!("key_release failed: {e}")))
     }
 
-    fn tap(&mut self, key: &KeySpec) -> Result<(), AppError> {
-        let key = parse_key(&key.0)?;
+    fn key_tap(&mut self, key: &KeySpec) -> Result<(), AppError> {
         self.inner
-            .key(key, Click)
-            .map_err(|e| AppError::Port(format!("tap failed: {e}")))
+            .key(parse_key(&key.0)?, Click)
+            .map_err(|e| AppError::Port(format!("key_tap failed: {e}")))
+    }
+
+    fn mouse_press(&mut self, button: MouseButton) -> Result<(), AppError> {
+        self.inner
+            .button(parse_mouse_button(button), Press)
+            .map_err(|e| AppError::Port(format!("mouse_press failed: {e}")))
+    }
+
+    fn mouse_release(&mut self, button: MouseButton) -> Result<(), AppError> {
+        self.inner
+            .button(parse_mouse_button(button), Release)
+            .map_err(|e| AppError::Port(format!("mouse_release failed: {e}")))
+    }
+
+    fn mouse_click(&mut self, button: MouseButton) -> Result<(), AppError> {
+        self.inner
+            .button(parse_mouse_button(button), Click)
+            .map_err(|e| AppError::Port(format!("mouse_click failed: {e}")))
+    }
+}
+
+fn parse_mouse_button(button: MouseButton) -> EnigoButton {
+    match button {
+        MouseButton::Left => EnigoButton::Left,
+        MouseButton::Right => EnigoButton::Right,
+        MouseButton::Middle => EnigoButton::Middle,
+        MouseButton::Back => EnigoButton::Back,
+        MouseButton::Forward => EnigoButton::Forward,
+        MouseButton::Unknown(_) => EnigoButton::Left,
     }
 }
 
@@ -43,8 +70,7 @@ fn parse_key(raw: &str) -> Result<Key, AppError> {
     let normalized = raw.trim().to_lowercase();
 
     if normalized.chars().count() == 1 {
-        let ch = normalized.chars().next().unwrap();
-        return Ok(Key::Unicode(ch));
+        return Ok(Key::Unicode(normalized.chars().next().unwrap()));
     }
 
     let key = match normalized.as_str() {
@@ -52,22 +78,9 @@ fn parse_key(raw: &str) -> Result<Key, AppError> {
         "enter" | "return" => Key::Return,
         "tab" => Key::Tab,
         "esc" | "escape" => Key::Escape,
-        "backspace" => Key::Backspace,
-        "delete" | "del" => Key::Delete,
-        "insert" => Key::Insert,
-        "home" => Key::Home,
-        "end" => Key::End,
-        "pageup" => Key::PageUp,
-        "pagedown" => Key::PageDown,
-        "up" => Key::UpArrow,
-        "down" => Key::DownArrow,
-        "left" => Key::LeftArrow,
-        "right" => Key::RightArrow,
-        "shift" => Key::Shift,
         "ctrl" | "control" => Key::Control,
+        "shift" => Key::Shift,
         "alt" => Key::Alt,
-        "meta" | "win" | "super" => Key::Meta,
-        "capslock" => Key::CapsLock,
         "f1" => Key::F1,
         "f2" => Key::F2,
         "f3" => Key::F3,
@@ -81,21 +94,8 @@ fn parse_key(raw: &str) -> Result<Key, AppError> {
         "f11" => Key::F11,
         "f12" => Key::F12,
         "f13" => Key::F13,
-        "f14" => Key::F14,
-        "f15" => Key::F15,
-        "f16" => Key::F16,
-        "f17" => Key::F17,
-        "f18" => Key::F18,
-        "f19" => Key::F19,
-        "f20" => Key::F20,
-        "f21" => Key::F21,
-        "f22" => Key::F22,
-        "f23" => Key::F23,
-        "f24" => Key::F24,
         other => {
-            return Err(AppError::Parse(format!(
-                "unsupported key '{other}'. Add it to parse_key()."
-            )));
+            return Err(AppError::Parse(format!("unsupported key '{other}'")));
         }
     };
 

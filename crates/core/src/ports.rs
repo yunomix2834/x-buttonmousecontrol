@@ -1,17 +1,20 @@
-use crate::{AppError, BindingProfile, KeySpec, MouseInputEvent};
+use crate::{AppError, BindingProfile, InputEvent, KeySpec, MouseButton};
 use std::sync::mpsc::Sender;
 
 pub trait BindingRepository {
     fn load(&self) -> Result<BindingProfile, AppError>;
 }
 
-pub trait MouseEventSource {
-    /// Adapter sẽ tự spawn thread riêng và bơm event vào channel.
-    fn spawn(&self, tx: Sender<MouseInputEvent>) -> Result<(), AppError>;
+pub trait InputEventSource {
+    fn spawn(&self, tx: Sender<InputEvent>) -> Result<(), AppError>;
 }
 
-pub trait KeyEmitter {
-    fn press(&mut self, key: &KeySpec) -> Result<(), AppError>;
-    fn release(&mut self, key: &KeySpec) -> Result<(), AppError>;
-    fn tap(&mut self, key: &KeySpec) -> Result<(), AppError>;
+pub trait OutputEmitter {
+    fn key_press(&mut self, key: &KeySpec) -> Result<(), AppError>;
+    fn key_release(&mut self, key: &KeySpec) -> Result<(), AppError>;
+    fn key_tap(&mut self, key: &KeySpec) -> Result<(), AppError>;
+
+    fn mouse_press(&mut self, button: MouseButton) -> Result<(), AppError>;
+    fn mouse_release(&mut self, button: MouseButton) -> Result<(), AppError>;
+    fn mouse_click(&mut self, button: MouseButton) -> Result<(), AppError>;
 }

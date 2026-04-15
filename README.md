@@ -1,22 +1,56 @@
 # xbuttonmousecontrol
 
-Ứng dụng bind nút chuột thành phím bàn phím trên **Windows** và **Linux/X11**, được tổ chức theo hướng **Hexagonal Architecture** để dễ mở rộng và tuân thủ các nguyên tắc **SOLID**.
+Ứng dụng bind **chuột → phím** và **phím → click chuột** trên **Windows** và **Linux/X11**.
 
-> Hiện tại nhánh Linux của project đang đi theo hướng **X11**. Nếu bạn đang dùng **Wayland**, chương trình có thể không hoạt động đúng như mong đợi.
+Project được tổ chức theo hướng **Hexagonal Architecture**:
+- `core`: domain + ports + runtime
+- `config-toml`: adapter đọc cấu hình TOML
+- `platform-rdev`: adapter bắt input global và phát output qua OS
+- `cli`: entrypoint chạy ứng dụng
 
-## Tính năng hiện có
+## Trạng thái hiện tại
 
-- Lắng nghe sự kiện nhấn/thả chuột toàn cục
-- Map nút chuột thành phím bàn phím
-- Hỗ trợ 2 kiểu action:
-  - `tap`: nhấn chuột một lần thì bấm phím một lần
-  - `hold`: giữ chuột thì giữ phím, thả chuột thì nhả phím
+Đã hỗ trợ:
+
+- `mouse -> key`
+- `key -> mouse`
+- `tap`
+- `hold`
+
+Ví dụ:
+- bấm chuột trái → gửi phím `f`
+- bấm `F1` → click chuột trái
+
+> Trên Linux, project hiện ưu tiên **X11**.  
+> Nếu bạn đang dùng **Wayland**, chức năng giả lập chuột/phím có thể không hoạt động đúng.
+
+---
+
+## Cấu trúc project
+
+```text
+xbuttonmousecontrol/
+├─ Cargo.toml
+├─ Cargo.lock
+├─ config/
+│  └─ bindings.toml
+├─ crates/
+│  ├─ core/
+│  ├─ config-toml/
+│  ├─ platform-rdev/
+│  └─ cli/
+├─ .github/workflows/ci.yml
+├─ Dockerfile
+└─ README.md
+````
+
+---
 
 ## Yêu cầu môi trường
 
-### 1. Cài Rust
+## 1. Rust
 
-Nếu máy chưa có `cargo`, cài Rust bằng `rustup`:
+Cài Rust bằng `rustup`:
 
 ```bash
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
@@ -30,9 +64,9 @@ cargo --version
 rustc --version
 ```
 
-### 2. Linux: cài dependency hệ thống
+## 2. Linux: dependency X11
 
-Trên Ubuntu/Debian, cài thêm các gói cần cho X11:
+Trên Ubuntu/Debian:
 
 ```bash
 sudo apt-get update
@@ -44,16 +78,11 @@ sudo apt-get install -y \
   libxdo-dev
 ```
 
-Nếu thiếu các gói này, khi build bạn có thể gặp lỗi kiểu:
-- `Package 'xi' not found`
-- `xi.pc not found`
-- lỗi từ crate `x11`
+---
 
-## Cách chạy project
+## Chạy project
 
-### Chạy trực tiếp từ source
-
-Tại thư mục root project:
+### Chạy từ source
 
 ```bash
 cargo run -p xbuttonmousecontrol-cli -- config/bindings.toml
@@ -75,99 +104,214 @@ cargo build --release -p xbuttonmousecontrol-cli
 .\target\release\xbuttonmousecontrol-cli.exe config\bindings.toml
 ```
 
-## Cấu hình binding
+---
 
-File cấu hình mặc định nằm ở:
+## Format cấu hình
+
+File mặc định:
 
 ```text
 config/bindings.toml
 ```
 
-Ví dụ:
+Mỗi binding có 5 field:
+
+* `source_type`: loại input nguồn
+* `source`: input nguồn
+* `target_type`: loại output đích
+* `target`: output đích
+* `action`: `tap` hoặc `hold`
+
+### Ví dụ đầy đủ
 
 ```toml
-# action:
-# - hold: press mouse down => press key, release mouse => release key
-# - tap: click key once when mouse is pressed
-
+# mouse -> key
 [[bindings]]
-mouse_button = "back"
-key = "space"
+source_type = "mouse"
+source = "left"
+target_type = "key"
+target = "f"
 action = "tap"
 
 [[bindings]]
-mouse_button = "forward"
-key = "ctrl"
-action = "hold"
+source_type = "mouse"
+source = "right"
+target_type = "key"
+target = "h"
+action = "tap"
+
+# key -> mouse
+[[bindings]]
+source_type = "key"
+source = "f1"
+target_type = "mouse"
+target = "left"
+action = "tap"
 
 [[bindings]]
-mouse_button = "middle"
-key = "f8"
+source_type = "key"
+source = "f2"
+target_type = "mouse"
+target = "right"
 action = "tap"
 ```
 
-### Ý nghĩa các field
+---
 
-#### `mouse_button`
-Các giá trị đang hỗ trợ:
-- `left`
-- `right`
-- `middle`
-- `back`
-- `forward`
-- alias:
-  - `x1`
-  - `x2`
-  - `mouse4`
-  - `mouse5`
+## Ý nghĩa các field
 
-#### `key`
-Tên phím muốn map tới.
+### `source_type`
+
+Giá trị hỗ trợ:
+
+* `mouse`
+* `key`
+
+### `target_type`
+
+Giá trị hỗ trợ:
+
+* `mouse`
+* `key`
+
+### `source` và `target` khi là chuột
+
+Giá trị hỗ trợ:
+
+* `left`
+* `right`
+* `middle`
+* `back`
+* `forward`
+
+Alias:
+
+* `x1`
+* `x2`
+* `mouse4`
+* `mouse5`
+
+### `source` và `target` khi là phím
 
 Ví dụ:
-- `space`
-- `ctrl`
-- `shift`
-- `alt`
-- `enter`
-- `tab`
-- `esc`
-- `f1` ... `f24`
-- ký tự đơn như `a`, `b`, `z`, `1`
 
-#### `action`
-- `tap`: nhấn chuột xuống thì gửi 1 lần click phím
-- `hold`: nhấn chuột xuống thì giữ phím, thả chuột ra thì nhả phím
+* `f1` ... `f12`
+* `a` ... `z`
+* `0` ... `9`
+* `space`
+* `enter`
+* `tab`
+* `esc`
+* `ctrl`
+* `shift`
+* `alt`
+
+### `action`
+
+* `tap`:
+
+    * nếu source được nhấn xuống, app phát 1 lần target
+    * release sẽ bị bỏ qua
+
+* `hold`:
+
+    * press source → giữ target
+    * release source → nhả target
+
+---
 
 ## Ví dụ sử dụng
 
-### Ví dụ 1: Nút Back thành Space
+### 1. Chuột trái thành phím `f`
 
 ```toml
 [[bindings]]
-mouse_button = "back"
-key = "space"
+source_type = "mouse"
+source = "left"
+target_type = "key"
+target = "f"
 action = "tap"
 ```
 
-Khi bấm nút Back trên chuột, chương trình sẽ gửi phím `Space`.
-
-### Ví dụ 2: Nút Forward thành Ctrl giữ liên tục
+### 2. Chuột phải thành phím `h`
 
 ```toml
 [[bindings]]
-mouse_button = "forward"
-key = "ctrl"
+source_type = "mouse"
+source = "right"
+target_type = "key"
+target = "h"
+action = "tap"
+```
+
+### 3. F1 click chuột trái
+
+```toml
+[[bindings]]
+source_type = "key"
+source = "f1"
+target_type = "mouse"
+target = "left"
+action = "tap"
+```
+
+### 4. Giữ Ctrl bằng nút chuột Forward
+
+```toml
+[[bindings]]
+source_type = "mouse"
+source = "forward"
+target_type = "key"
+target = "ctrl"
 action = "hold"
 ```
 
-Khi giữ nút Forward trên chuột, chương trình sẽ giữ `Ctrl`. Khi thả nút chuột, `Ctrl` sẽ được nhả ra.
+## Troubleshooting
 
-### Ví dụ 3: Nút giữa chuột thành F8
+### Nhấn F1 nhưng không click chuột
+
+Kiểm tra lần lượt:
+
+1. `config/bindings.toml` có đúng không
 
 ```toml
 [[bindings]]
-mouse_button = "middle"
-key = "f8"
+source_type = "key"
+source = "f1"
+target_type = "mouse"
+target = "left"
 action = "tap"
 ```
+
+2. Có đang chạy trên Wayland không
+
+```bash
+echo "$XDG_SESSION_TYPE"
+```
+
+3. Có build đúng binary mới nhất chưa
+
+```bash
+cargo clean
+cargo run -p xbuttonmousecontrol-cli -- config/bindings.toml
+```
+
+### Linux build lỗi thiếu `xi.pc`
+
+Cài:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y libxi-dev
+```
+
+## Ghi chú
+
+Đây là bản nền tốt để phát triển tiếp theo hướng:
+
+* intercept / consume event thật
+* profile switching
+* GUI / tray app
+* hot reload config
+* macro nhiều bước
+* guard chống loop giữa `key -> mouse` và `mouse -> key`

@@ -1,8 +1,9 @@
-use xbuttonmousecontrol_core::{
-    AppError, Binding, BindingAction, BindingProfile, BindingRepository, KeySpec, MouseButton,
-};
 use serde::Deserialize;
 use std::{fs, path::PathBuf};
+use xbuttonmousecontrol_core::{
+    AppError, Binding, BindingAction, BindingProfile, BindingRepository, KeySpec, MouseButton,
+    Target, Trigger,
+};
 
 pub struct TomlBindingRepository {
     path: PathBuf,
@@ -21,8 +22,10 @@ struct FileProfile {
 
 #[derive(Debug, Deserialize)]
 struct FileBinding {
-    mouse_button: String,
-    key: String,
+    source_type: String,
+    source: String,
+    target_type: String,
+    target: String,
     action: String,
 }
 
@@ -36,13 +39,29 @@ impl BindingRepository for TomlBindingRepository {
 
         for item in raw.bindings {
             bindings.push(Binding {
-                mouse_button: parse_mouse_button(&item.mouse_button)?,
-                key: KeySpec(item.key),
+                trigger: parse_trigger(&item.source_type, &item.source)?,
+                target: parse_target(&item.target_type, &item.target)?,
                 action: parse_action(&item.action)?,
             });
         }
 
         Ok(BindingProfile { bindings })
+    }
+}
+
+fn parse_trigger(source_type: &str, source: &str) -> Result<Trigger, AppError> {
+    match source_type.trim().to_lowercase().as_str() {
+        "mouse" => Ok(Trigger::Mouse(parse_mouse_button(source)?)),
+        "key" => Ok(Trigger::Key(KeySpec(source.trim().to_string()))),
+        other => Err(AppError::Parse(format!("unknown source_type '{other}'"))),
+    }
+}
+
+fn parse_target(target_type: &str, target: &str) -> Result<Target, AppError> {
+    match target_type.trim().to_lowercase().as_str() {
+        "mouse" => Ok(Target::Mouse(parse_mouse_button(target)?)),
+        "key" => Ok(Target::Key(KeySpec(target.trim().to_string()))),
+        other => Err(AppError::Parse(format!("unknown target_type '{other}'"))),
     }
 }
 
@@ -53,9 +72,7 @@ fn parse_mouse_button(value: &str) -> Result<MouseButton, AppError> {
         "middle" => Ok(MouseButton::Middle),
         "back" | "x1" | "mouse4" => Ok(MouseButton::Back),
         "forward" | "x2" | "mouse5" => Ok(MouseButton::Forward),
-        other => Err(AppError::Parse(format!(
-            "unknown mouse_button '{other}'"
-        ))),
+        other => Err(AppError::Parse(format!("unknown mouse button '{other}'"))),
     }
 }
 

@@ -10,6 +10,9 @@ pub enum MouseButton {
     Unknown(u32),
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct KeySpec(pub String);
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum InputPhase {
     Press,
@@ -17,22 +20,27 @@ pub enum InputPhase {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct KeySpec(pub String);
+pub enum Trigger {
+    Mouse(MouseButton),
+    Key(KeySpec),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum Target {
+    Key(KeySpec),
+    Mouse(MouseButton),
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum BindingAction {
-    /// Nhấn chuột xuống => nhấn phím
-    /// Thả chuột => thả phím
     Hold,
-
-    /// Chỉ tap 1 lần khi nhấn chuột xuống
     Tap,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Binding {
-    pub mouse_button: MouseButton,
-    pub key: KeySpec,
+    pub trigger: Trigger,
+    pub target: Target,
     pub action: BindingAction,
 }
 
@@ -41,8 +49,8 @@ pub struct BindingProfile {
     pub bindings: Vec<Binding>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub struct MouseInputEvent {
-    pub button: MouseButton,
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct InputEvent {
+    pub trigger: Trigger,
     pub phase: InputPhase,
 }

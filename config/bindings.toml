@@ -1,18 +1,29 @@
-# action:
-# - hold: press mouse down => press key, release mouse => release key
-# - tap: click key once when mouse is pressed
+# mouse -> key
+#[[bindings]]
+#source_type = "mouse"
+#source = "left"
+#target_type = "key"
+#target = "f"
+#action = "tap"
+#
+#[[bindings]]
+#source_type = "mouse"
+#source = "right"
+#target_type = "key"
+#target = "h"
+#action = "tap"
 
+# key -> mouse
 [[bindings]]
-mouse_button = "back"
-key = "space"
+source_type = "key"
+source = "f1"
+target_type = "mouse"
+target = "left"
 action = "tap"
 
-[[bindings]]
-mouse_button = "forward"
-key = "ctrl"
-action = "hold"
-
-[[bindings]]
-mouse_button = "middle"
-key = "f8"
-action = "tap"
+#[[bindings]]
+#source_type = "key"
+#source = "f2"
+#target_type = "mouse"
+#target = "right"
+#action = "tap"
