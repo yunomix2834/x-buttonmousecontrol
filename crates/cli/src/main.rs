@@ -1,7 +1,7 @@
 use std::{
     env,
     error::Error,
-    path::{Path, PathBuf},
+    path::{PathBuf},
 };
 
 use xbuttonmousecontrol_config_toml::TomlBindingRepository;
