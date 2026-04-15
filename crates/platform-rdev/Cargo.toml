@@ -1,0 +1,9 @@
+[package]
+name = "xbuttonmousecontrol-platform-rdev"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+xbuttonmousecontrol-core = { path = "../core" }
+rdev = "0.5.3"
+enigo = "0.6.1"

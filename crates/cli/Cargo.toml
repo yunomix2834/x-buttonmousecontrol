@@ -1,0 +1,9 @@
+[package]
+name = "xbuttonmousecontrol-cli"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+xbuttonmousecontrol-core = { path = "../core" }
+xbuttonmousecontrol-config-toml = { path = "../config-toml" }
+xbuttonmousecontrol-platform-rdev = { path = "../platform-rdev" }

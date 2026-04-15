@@ -1,0 +1,259 @@
+name: xbuttonmousecontrol-ci
+
+on:
+  push:
+    branches: [main, master]
+    tags:
+      - "v*"
+  pull_request:
+    branches: [main, master]
+
+env:
+  APP_NAME: xbuttonmousecontrol-cli
+  DOCKERHUB_IMAGE: ${{ vars.DOCKERHUB_IMAGE }}
+  GHCR_IMAGE: ghcr.io/${{ github.repository_owner }}/xbuttonmousecontrol
+
+jobs:
+  unit-test:
+    name: Unit test + coverage
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            pkg-config \
+            libx11-dev \
+            libxtst-dev \
+            libxi-dev \
+            libxdo-dev
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install cargo-llvm-cov
+        run: cargo install cargo-llvm-cov --locked
+
+      - name: Run tests with coverage
+        run: |
+          cargo llvm-cov clean --workspace
+          cargo llvm-cov \
+            --workspace \
+            --all-features \
+            --lcov \
+            --output-path lcov.info
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rust-test-reports
+          path: |
+            lcov.info
+
+  sonar-scan:
+    name: Sonar scan
+    runs-on: ubuntu-latest
+    needs: unit-test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download coverage artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: rust-test-reports
+          path: .
+
+      - name: SonarQube scan
+        uses: SonarSource/sonarqube-scan-action@v6
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+        with:
+          projectBaseDir: .
+
+  trivy-source:
+    name: Trivy source scan
+    runs-on: ubuntu-latest
+    needs: sonar-scan
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Trivy filesystem scan
+        uses: aquasecurity/trivy-action@0.35.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: table
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: 1
+
+  build-push:
+    name: Build and push Docker image
+    runs-on: ubuntu-latest
+    needs: trivy-source
+    if: github.event_name == 'push'
+
+    permissions:
+      contents: read
+      packages: write
+
+    outputs:
+      dockerhub_image_ref: ${{ steps.refs.outputs.dockerhub_image_ref }}
+      ghcr_image_ref: ${{ steps.refs.outputs.ghcr_image_ref }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Login GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compute image refs
+        id: refs
+        shell: bash
+        run: |
+          SHORT_SHA="${GITHUB_SHA::7}"
+          echo "dockerhub_image_ref=${DOCKERHUB_IMAGE}:${SHORT_SHA}" >> "$GITHUB_OUTPUT"
+          echo "ghcr_image_ref=${GHCR_IMAGE}:${SHORT_SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push image to Docker Hub and GHCR
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ${{ steps.refs.outputs.dockerhub_image_ref }}
+            ${{ env.DOCKERHUB_IMAGE }}:latest
+            ${{ steps.refs.outputs.ghcr_image_ref }}
+            ${{ env.GHCR_IMAGE }}:latest
+
+  trivy-image:
+    name: Trivy image scan
+    runs-on: ubuntu-latest
+    needs: build-push
+    if: github.event_name == 'push'
+
+    steps:
+      - name: Trivy scan Docker Hub image
+        uses: aquasecurity/trivy-action@0.35.0
+        with:
+          image-ref: ${{ needs.build-push.outputs.dockerhub_image_ref }}
+          format: table
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: 1
+
+      - name: Trivy scan GHCR image
+        uses: aquasecurity/trivy-action@0.35.0
+        with:
+          image-ref: ${{ needs.build-push.outputs.ghcr_image_ref }}
+          format: table
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: 1
+
+  build-linux-app:
+    name: Build Linux app
+    runs-on: ubuntu-latest
+    needs: unit-test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            pkg-config \
+            libx11-dev \
+            libxtst-dev \
+            libxi-dev \
+            libxdo-dev
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build release binary
+        run: cargo build --release -p xbuttonmousecontrol-cli
+
+      - name: Package Linux artifact
+        run: |
+          mkdir -p dist
+          cp target/release/xbuttonmousecontrol-cli dist/
+          cp config/bindings.toml dist/
+          tar -czf xbuttonmousecontrol-linux.tar.gz -C dist .
+
+      - name: Upload Linux artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: xbuttonmousecontrol-linux
+          path: xbuttonmousecontrol-linux.tar.gz
+
+  build-windows-app:
+    name: Build Windows app
+    runs-on: windows-latest
+    needs: unit-test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build release binary
+        shell: pwsh
+        run: cargo build --release -p xbuttonmousecontrol-cli
+
+      - name: Package Windows artifact
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Copy-Item target/release/xbuttonmousecontrol-cli.exe dist/
+          Copy-Item config/bindings.toml dist/
+          Compress-Archive -Path dist/* -DestinationPath xbuttonmousecontrol-windows.zip -Force
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: xbuttonmousecontrol-windows
+          path: xbuttonmousecontrol-windows.zip

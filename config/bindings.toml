@@ -1,0 +1,18 @@
+# action:
+# - hold: press mouse down => press key, release mouse => release key
+# - tap: click key once when mouse is pressed
+
+[[bindings]]
+mouse_button = "back"
+key = "space"
+action = "tap"
+
+[[bindings]]
+mouse_button = "forward"
+key = "ctrl"
+action = "hold"
+
+[[bindings]]
+mouse_button = "middle"
+key = "f8"
+action = "tap"
