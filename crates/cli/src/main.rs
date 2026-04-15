@@ -1,15 +1,24 @@
-use std::{env, path::PathBuf};
+use std::{
+    env,
+    error::Error,
+    path::{Path, PathBuf},
+};
 
 use xbuttonmousecontrol_config_toml::TomlBindingRepository;
 use xbuttonmousecontrol_core::{BindingRepository, BindingRuntime, Trigger};
 use xbuttonmousecontrol_platform_rdev::{EnigoOutputEmitter, RdevInputEventSource};
 use xbuttonmousecontrol_platform_wayland_portal::build_wayland_backend;
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let config_path = env::args()
-        .nth(1)
-        .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from("config/bindings.toml"));
+fn main() {
+    if let Err(err) = run() {
+        eprintln!("{err}");
+        std::process::exit(1);
+    }
+}
+
+fn run() -> Result<(), Box<dyn Error>> {
+    let arg_config = env::args().nth(1);
+    let config_path = resolve_config_path(arg_config.as_deref())?;
 
     let repo = TomlBindingRepository::new(config_path.clone());
 
@@ -43,4 +52,35 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     runtime.run()?;
 
     Ok(())
+}
+
+fn resolve_config_path(arg: Option<&str>) -> Result<PathBuf, Box<dyn Error>> {
+    let mut candidates: Vec<PathBuf> = Vec::new();
+
+    if let Some(arg) = arg {
+        candidates.push(PathBuf::from(arg));
+    }
+
+    candidates.push(PathBuf::from("config").join("bindings.toml"));
+    candidates.push(PathBuf::from("bindings.toml"));
+
+    if let Ok(exe_path) = env::current_exe() {
+        if let Some(exe_dir) = exe_path.parent() {
+            candidates.push(exe_dir.join("config").join("bindings.toml"));
+            candidates.push(exe_dir.join("bindings.toml"));
+        }
+    }
+
+    for candidate in candidates {
+        if candidate.is_file() {
+            return Ok(candidate);
+        }
+    }
+
+    Err(
+        "Cannot find bindings.toml. Tried: \
+         <arg>, ./config/bindings.toml, ./bindings.toml, \
+         <exe_dir>/config/bindings.toml, <exe_dir>/bindings.toml"
+            .into(),
+    )
 }

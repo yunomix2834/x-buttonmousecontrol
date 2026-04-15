@@ -213,9 +213,17 @@ jobs:
 
       - name: Package Linux artifact
         run: |
-          mkdir -p dist
+          mkdir -p dist/config
           cp target/release/xbuttonmousecontrol-cli dist/
-          cp config/bindings.toml dist/
+          cp config/bindings.toml dist/config/bindings.toml
+          cat > dist/start-xbuttonmousecontrol.sh <<'EOF'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+          cd "$SCRIPT_DIR"
+          exec "$SCRIPT_DIR/xbuttonmousecontrol-cli" "$SCRIPT_DIR/config/bindings.toml"
+          EOF
+          chmod +x dist/start-xbuttonmousecontrol.sh
           tar -czf xbuttonmousecontrol-linux.tar.gz -C dist .
 
       - name: Upload Linux artifact
@@ -247,8 +255,19 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path dist | Out-Null
+          New-Item -ItemType Directory -Force -Path dist/config | Out-Null
+
           Copy-Item target/release/xbuttonmousecontrol-cli.exe dist/
-          Copy-Item config/bindings.toml dist/
+          Copy-Item config/bindings.toml dist/config/bindings.toml
+
+          $bat = @(
+            '@echo off',
+            'cd /d "%~dp0"',
+            '"%~dp0xbuttonmousecontrol-cli.exe" "%~dp0config\bindings.toml"',
+            'if errorlevel 1 pause'
+          )
+          $bat | Set-Content dist/start-xbuttonmousecontrol.bat
+
           Compress-Archive -Path dist/* -DestinationPath xbuttonmousecontrol-windows.zip -Force
 
       - name: Upload Windows artifact
