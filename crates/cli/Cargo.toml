@@ -7,3 +7,4 @@ edition = "2021"
 xbuttonmousecontrol-core = { path = "../core" }
 xbuttonmousecontrol-config-toml = { path = "../config-toml" }
 xbuttonmousecontrol-platform-rdev = { path = "../platform-rdev" }
+xbuttonmousecontrol-platform-wayland-portal = { path = "../platform-wayland-portal" }

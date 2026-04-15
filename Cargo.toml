@@ -3,6 +3,7 @@ members = [
     "crates/core",
     "crates/config-toml",
     "crates/platform-rdev",
+    "crates/platform-wayland-portal",
     "crates/cli",
 ]
 resolver = "2"
