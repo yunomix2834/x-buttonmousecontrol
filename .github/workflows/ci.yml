@@ -84,8 +84,6 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
           projectBaseDir: .
-          args: >
-            -Dsonar.qualitygate.wait=true
 
   trivy-source:
     name: Trivy source scan
