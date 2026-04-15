@@ -1,12 +1,18 @@
 use std::{
     env,
     error::Error,
-    path::{PathBuf},
+    path::PathBuf,
 };
 
 use xbuttonmousecontrol_config_toml::TomlBindingRepository;
-use xbuttonmousecontrol_core::{BindingRepository, BindingRuntime, Trigger};
+use xbuttonmousecontrol_core::{BindingRepository, BindingRuntime};
+
+#[cfg(target_os = "linux")]
+use xbuttonmousecontrol_core::Trigger;
+
 use xbuttonmousecontrol_platform_rdev::{EnigoOutputEmitter, RdevInputEventSource};
+
+#[cfg(target_os = "linux")]
 use xbuttonmousecontrol_platform_wayland_portal::build_wayland_backend;
 
 fn main() {
@@ -17,31 +23,32 @@ fn main() {
 }
 
 fn run() -> Result<(), Box<dyn Error>> {
-    let arg_config = env::args().nth(1);
-    let config_path = resolve_config_path(arg_config.as_deref())?;
-
-    let repo = TomlBindingRepository::new(config_path.clone());
+    let config_path = resolve_config_path(env::args().nth(1).as_deref())?;
 
     #[cfg(target_os = "linux")]
-    if std::env::var("XDG_SESSION_TYPE").ok().as_deref() == Some("wayland") {
-        let profile = repo.load()?;
+    {
+        let repo = TomlBindingRepository::new(config_path.clone());
 
-        let has_mouse_triggers = profile
-            .bindings
-            .iter()
-            .any(|b| matches!(b.trigger, Trigger::Mouse(_)));
+        if std::env::var("XDG_SESSION_TYPE").ok().as_deref() == Some("wayland") {
+            let profile = repo.load()?;
 
-        if has_mouse_triggers {
-            eprintln!(
-                "[warning] Wayland adapter currently supports shortcut-driven bindings only \
-                 (key -> mouse / key -> key). mouse -> key remains on X11 for now."
-            );
+            let has_mouse_triggers = profile
+                .bindings
+                .iter()
+                .any(|b| matches!(b.trigger, Trigger::Mouse(_)));
+
+            if has_mouse_triggers {
+                eprintln!(
+                    "[warning] Wayland adapter currently supports shortcut-driven bindings only \
+                     (key -> mouse / key -> key). mouse -> key remains on X11 for now."
+                );
+            }
+
+            let (source, emitter) = build_wayland_backend(&profile);
+            let mut runtime = BindingRuntime::new(repo, source, emitter);
+            runtime.run()?;
+            return Ok(());
         }
-
-        let (source, emitter) = build_wayland_backend(&profile);
-        let mut runtime = BindingRuntime::new(repo, source, emitter);
-        runtime.run()?;
-        return Ok(());
     }
 
     let repo = TomlBindingRepository::new(config_path);
