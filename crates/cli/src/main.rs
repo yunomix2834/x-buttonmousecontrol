@@ -1,14 +1,10 @@
-use std::{
-    env,
-    error::Error,
-    path::PathBuf,
-};
+use std::{env, error::Error, path::PathBuf};
 
 use xbuttonmousecontrol_config_toml::TomlBindingRepository;
-use xbuttonmousecontrol_core::{BindingRepository, BindingRuntime};
+use xbuttonmousecontrol_core::BindingRuntime;
 
 #[cfg(target_os = "linux")]
-use xbuttonmousecontrol_core::Trigger;
+use xbuttonmousecontrol_core::{BindingRepository, Trigger};
 
 use xbuttonmousecontrol_platform_rdev::{EnigoOutputEmitter, RdevInputEventSource};
 
