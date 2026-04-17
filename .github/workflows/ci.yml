@@ -51,6 +51,7 @@ jobs:
           cargo llvm-cov \
             --locked \
             --workspace \
+            --exclude xbuttonmousecontrol-platform-win-hook \
             --all-features \
             --lcov \
             --output-path lcov.info
