@@ -5,8 +5,9 @@ use windows::Win32::UI::Input::KeyboardAndMouse::{
     MOUSEEVENTF_MIDDLEUP, MOUSEEVENTF_RIGHTDOWN, MOUSEEVENTF_RIGHTUP, MOUSEEVENTF_XDOWN,
     MOUSEEVENTF_XUP, MOUSEINPUT, MapVirtualKeyW, VIRTUAL_KEY, VK_CONTROL, VK_ESCAPE, VK_F1,
     VK_F10, VK_F11, VK_F12, VK_F2, VK_F3, VK_F4, VK_F5, VK_F6, VK_F7, VK_F8, VK_F9, VK_MENU,
-    VK_RETURN, VK_SHIFT, VK_SPACE, VK_TAB, XBUTTON1, XBUTTON2,
+    VK_RETURN, VK_SHIFT, VK_SPACE, VK_TAB,
 };
+use windows::Win32::UI::WindowsAndMessaging::{XBUTTON1, XBUTTON2};
 use xbuttonmousecontrol_core::{AppError, KeySpec, MouseButton, OutputEmitter};
 
 #[derive(Default)]

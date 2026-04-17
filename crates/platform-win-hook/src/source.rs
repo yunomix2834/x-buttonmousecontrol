@@ -4,16 +4,15 @@ use std::sync::{Arc, Mutex};
 use windows::Win32::Foundation::{HINSTANCE, LPARAM, LRESULT, WPARAM};
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows::Win32::UI::Input::KeyboardAndMouse::{
-    KBDLLHOOKSTRUCT, MSLLHOOKSTRUCT, VK_CONTROL, VK_ESCAPE, VK_F1, VK_F10, VK_F11, VK_F12,
-    VK_F2, VK_F3, VK_F4, VK_F5, VK_F6, VK_F7, VK_F8, VK_F9, VK_MENU, VK_RETURN, VK_SHIFT,
-    VK_SPACE, VK_TAB, XBUTTON1, XBUTTON2,
+    VK_CONTROL, VK_ESCAPE, VK_F1, VK_F10, VK_F11, VK_F12, VK_F2, VK_F3, VK_F4, VK_F5, VK_F6,
+    VK_F7, VK_F8, VK_F9, VK_MENU, VK_RETURN, VK_SHIFT, VK_SPACE, VK_TAB,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    CallNextHookEx, DispatchMessageW, GetMessageW, SetWindowsHookExW, TranslateMessage,
-    UnhookWindowsHookEx, HC_ACTION, HHOOK, MSG, WH_KEYBOARD_LL, WH_MOUSE_LL, WM_KEYDOWN,
-    WM_KEYUP, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MBUTTONDOWN, WM_MBUTTONUP, WM_MOUSEMOVE,
-    WM_MOUSEWHEEL, WM_RBUTTONDOWN, WM_RBUTTONUP, WM_SYSKEYDOWN, WM_SYSKEYUP, WM_XBUTTONDOWN,
-    WM_XBUTTONUP,
+    CallNextHookEx, DispatchMessageW, GetMessageW, KBDLLHOOKSTRUCT, MSLLHOOKSTRUCT, SetWindowsHookExW,
+    TranslateMessage, UnhookWindowsHookEx, XBUTTON1, XBUTTON2, HC_ACTION, HHOOK, MSG,
+    WH_KEYBOARD_LL, WH_MOUSE_LL, WM_KEYDOWN, WM_KEYUP, WM_LBUTTONDOWN, WM_LBUTTONUP,
+    WM_MBUTTONDOWN, WM_MBUTTONUP, WM_MOUSEMOVE, WM_MOUSEWHEEL, WM_RBUTTONDOWN, WM_RBUTTONUP,
+    WM_SYSKEYDOWN, WM_SYSKEYUP, WM_XBUTTONDOWN, WM_XBUTTONUP,
 };
 use xbuttonmousecontrol_core::{
     AppError, InputEvent, InputInterceptor, InputPhase, InterceptDecision, KeySpec, MouseButton,
@@ -42,10 +41,14 @@ impl InputInterceptor for WinHookInputInterceptor {
             .map_err(|e| AppError::Port(format!("GetModuleHandleW failed: {e}")))?
             .into();
 
-        let keyboard = unsafe { SetWindowsHookExW(WH_KEYBOARD_LL, Some(keyboard_proc), module, 0) }
+        let keyboard = unsafe {
+            SetWindowsHookExW(WH_KEYBOARD_LL, Some(keyboard_proc), Some(module), 0)
+        }
             .map_err(|e| AppError::Port(format!("SetWindowsHookExW keyboard failed: {e}")))?;
 
-        let mouse = unsafe { SetWindowsHookExW(WH_MOUSE_LL, Some(mouse_proc), module, 0) }
+        let mouse = unsafe {
+            SetWindowsHookExW(WH_MOUSE_LL, Some(mouse_proc), Some(module), 0)
+        }
             .map_err(|e| AppError::Port(format!("SetWindowsHookExW mouse failed: {e}")))?;
 
         let result = message_loop();
@@ -87,12 +90,12 @@ impl HookState {
 
 unsafe extern "system" fn keyboard_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     if code < HC_ACTION as i32 {
-        return CallNextHookEx(HHOOK::default(), code, wparam, lparam);
+        return CallNextHookEx(Some(HHOOK::default()), code, wparam, lparam);
     }
 
     let hook = &*(lparam.0 as *const KBDLLHOOKSTRUCT);
     if hook.dwExtraInfo == SYNTHETIC_TAG {
-        return CallNextHookEx(HHOOK::default(), code, wparam, lparam);
+        return CallNextHookEx(Some(HHOOK::default()), code, wparam, lparam);
     }
 
     let phase = match wparam.0 as u32 {
@@ -115,17 +118,17 @@ unsafe extern "system" fn keyboard_proc(code: i32, wparam: WPARAM, lparam: LPARA
         }
     }
 
-    CallNextHookEx(HHOOK::default(), code, wparam, lparam)
+    CallNextHookEx(Some(HHOOK::default()), code, wparam, lparam)
 }
 
 unsafe extern "system" fn mouse_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     if code < HC_ACTION as i32 {
-        return CallNextHookEx(HHOOK::default(), code, wparam, lparam);
+        return CallNextHookEx(Some(HHOOK::default()), code, wparam, lparam);
     }
 
     let hook = &*(lparam.0 as *const MSLLHOOKSTRUCT);
     if hook.dwExtraInfo == SYNTHETIC_TAG {
-        return CallNextHookEx(HHOOK::default(), code, wparam, lparam);
+        return CallNextHookEx(Some(HHOOK::default()), code, wparam, lparam);
     }
 
     let mapped = match wparam.0 as u32 {
@@ -153,7 +156,7 @@ unsafe extern "system" fn mouse_proc(code: i32, wparam: WPARAM, lparam: LPARAM) 
         }
     }
 
-    CallNextHookEx(HHOOK::default(), code, wparam, lparam)
+    CallNextHookEx(Some(HHOOK::default()), code, wparam, lparam)
 }
 
 fn message_loop() -> Result<(), AppError> {
