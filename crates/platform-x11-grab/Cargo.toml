@@ -1,0 +1,9 @@
+[package]
+name = "xbuttonmousecontrol-platform-x11-grab"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+xbuttonmousecontrol-core = { path = "../core" }
+enigo = "0.6.1"
+x11rb = { version = "0.13.2", features = ["xinput", "xtest"] }

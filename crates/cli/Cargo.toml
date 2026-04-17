@@ -6,7 +6,9 @@ edition = "2021"
 [dependencies]
 xbuttonmousecontrol-core = { path = "../core" }
 xbuttonmousecontrol-config-toml = { path = "../config-toml" }
-xbuttonmousecontrol-platform-rdev = { path = "../platform-rdev" }
 
-[target.'cfg(target_os = "linux")'.dependencies]
-xbuttonmousecontrol-platform-wayland-portal = { path = "../platform-wayland-portal" }
+[target.'cfg(target_os = "windows")'.dependencies]
+xbuttonmousecontrol-platform-win-hook = { path = "../platform-win-hook" }
+
+[target.'cfg(all(target_os = "linux", not(target_env = "musl")))'.dependencies]
+xbuttonmousecontrol-platform-x11-grab = { path = "../platform-x11-grab" }

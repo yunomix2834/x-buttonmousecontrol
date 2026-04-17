@@ -20,6 +20,7 @@ source = "f1"
 target_type = "mouse"
 target = "left"
 action = "tap"
+mode = "replace"
 
 #[[bindings]]
 #source_type = "key"

@@ -2,8 +2,8 @@
 members = [
     "crates/core",
     "crates/config-toml",
-    "crates/platform-rdev",
-    "crates/platform-wayland-portal",
+    "crates/platform-win-hook",
+    "crates/platform-x11-grab",
     "crates/cli",
 ]
 resolver = "2"

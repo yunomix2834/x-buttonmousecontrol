@@ -1,15 +1,15 @@
 use std::{env, error::Error, path::PathBuf};
 
 use xbuttonmousecontrol_config_toml::TomlBindingRepository;
-use xbuttonmousecontrol_core::BindingRuntime;
+use xbuttonmousecontrol_core::{BindingRepository, BindingRuntime};
+
+#[cfg(target_os = "windows")]
+use xbuttonmousecontrol_platform_win_hook::{WinHookEmitter, WinHookInputInterceptor};
 
 #[cfg(target_os = "linux")]
-use xbuttonmousecontrol_core::{BindingRepository, Trigger};
-
-use xbuttonmousecontrol_platform_rdev::{EnigoOutputEmitter, RdevInputEventSource};
-
-#[cfg(target_os = "linux")]
-use xbuttonmousecontrol_platform_wayland_portal::build_wayland_backend;
+use xbuttonmousecontrol_platform_x11_grab::{
+    X11GrabEmitter, X11GrabInputInterceptor, X11SyntheticFilter,
+};
 
 fn main() {
     if let Err(err) = run() {
@@ -20,41 +20,30 @@ fn main() {
 
 fn run() -> Result<(), Box<dyn Error>> {
     let config_path = resolve_config_path(env::args().nth(1).as_deref())?;
+    let repo = TomlBindingRepository::new(config_path);
+    let profile = repo.load()?;
+
+    #[cfg(target_os = "windows")]
+    {
+        let source = WinHookInputInterceptor::new()?;
+        let emitter = WinHookEmitter::new()?;
+        let runtime = BindingRuntime::new(repo, source, emitter);
+        runtime.run()?;
+        return Ok(());
+    }
 
     #[cfg(target_os = "linux")]
     {
-        let repo = TomlBindingRepository::new(config_path.clone());
-
-        if std::env::var("XDG_SESSION_TYPE").ok().as_deref() == Some("wayland") {
-            let profile = repo.load()?;
-
-            let has_mouse_triggers = profile
-                .bindings
-                .iter()
-                .any(|b| matches!(b.trigger, Trigger::Mouse(_)));
-
-            if has_mouse_triggers {
-                eprintln!(
-                    "[warning] Wayland adapter currently supports shortcut-driven bindings only \
-                     (key -> mouse / key -> key). mouse -> key remains on X11 for now."
-                );
-            }
-
-            let (source, emitter) = build_wayland_backend(&profile);
-            let mut runtime = BindingRuntime::new(repo, source, emitter);
-            runtime.run()?;
-            return Ok(());
-        }
+        let synthetic = X11SyntheticFilter::default();
+        let source = X11GrabInputInterceptor::new(profile.clone(), synthetic.clone())?;
+        let emitter = X11GrabEmitter::new(synthetic)?;
+        let runtime = BindingRuntime::new(repo, source, emitter);
+        runtime.run()?;
+        return Ok(());
     }
 
-    let repo = TomlBindingRepository::new(config_path);
-    let source = RdevInputEventSource::default();
-    let emitter = EnigoOutputEmitter::new()?;
-
-    let mut runtime = BindingRuntime::new(repo, source, emitter);
-    runtime.run()?;
-
-    Ok(())
+    #[allow(unreachable_code)]
+    Err("unsupported platform".into())
 }
 
 fn resolve_config_path(arg: Option<&str>) -> Result<PathBuf, Box<dyn Error>> {
@@ -81,9 +70,7 @@ fn resolve_config_path(arg: Option<&str>) -> Result<PathBuf, Box<dyn Error>> {
     }
 
     Err(
-        "Cannot find bindings.toml. Tried: \
-         <arg>, ./config/bindings.toml, ./bindings.toml, \
-         <exe_dir>/config/bindings.toml, <exe_dir>/bindings.toml"
+        "Cannot find bindings.toml. Tried: <arg>, ./config/bindings.toml, ./bindings.toml, <exe_dir>/config/bindings.toml, <exe_dir>/bindings.toml"
             .into(),
     )
 }

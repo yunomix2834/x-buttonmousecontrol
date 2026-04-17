@@ -1,8 +1,8 @@
 use serde::Deserialize;
 use std::{fs, path::PathBuf};
 use xbuttonmousecontrol_core::{
-    AppError, Binding, BindingAction, BindingProfile, BindingRepository, KeySpec, MouseButton,
-    Target, Trigger,
+    AppError, Binding, BindingAction, BindingMode, BindingProfile, BindingRepository, KeySpec,
+    MouseButton, Target, Trigger,
 };
 
 pub struct TomlBindingRepository {
@@ -27,6 +27,7 @@ struct FileBinding {
     target_type: String,
     target: String,
     action: String,
+    mode: Option<String>,
 }
 
 impl BindingRepository for TomlBindingRepository {
@@ -42,6 +43,7 @@ impl BindingRepository for TomlBindingRepository {
                 trigger: parse_trigger(&item.source_type, &item.source)?,
                 target: parse_target(&item.target_type, &item.target)?,
                 action: parse_action(&item.action)?,
+                mode: parse_mode(item.mode.as_deref())?,
             });
         }
 
@@ -52,7 +54,7 @@ impl BindingRepository for TomlBindingRepository {
 fn parse_trigger(source_type: &str, source: &str) -> Result<Trigger, AppError> {
     match source_type.trim().to_lowercase().as_str() {
         "mouse" => Ok(Trigger::Mouse(parse_mouse_button(source)?)),
-        "key" => Ok(Trigger::Key(KeySpec(source.trim().to_string()))),
+        "key" => Ok(Trigger::Key(KeySpec(source.trim().to_lowercase()))),
         other => Err(AppError::Parse(format!("unknown source_type '{other}'"))),
     }
 }
@@ -60,7 +62,7 @@ fn parse_trigger(source_type: &str, source: &str) -> Result<Trigger, AppError> {
 fn parse_target(target_type: &str, target: &str) -> Result<Target, AppError> {
     match target_type.trim().to_lowercase().as_str() {
         "mouse" => Ok(Target::Mouse(parse_mouse_button(target)?)),
-        "key" => Ok(Target::Key(KeySpec(target.trim().to_string()))),
+        "key" => Ok(Target::Key(KeySpec(target.trim().to_lowercase()))),
         other => Err(AppError::Parse(format!("unknown target_type '{other}'"))),
     }
 }
@@ -81,5 +83,13 @@ fn parse_action(value: &str) -> Result<BindingAction, AppError> {
         "hold" => Ok(BindingAction::Hold),
         "tap" => Ok(BindingAction::Tap),
         other => Err(AppError::Parse(format!("unknown action '{other}'"))),
+    }
+}
+
+fn parse_mode(value: Option<&str>) -> Result<BindingMode, AppError> {
+    match value.unwrap_or("additive").trim().to_lowercase().as_str() {
+        "additive" | "passthrough" => Ok(BindingMode::Additive),
+        "replace" | "suppress" => Ok(BindingMode::Replace),
+        other => Err(AppError::Parse(format!("unknown mode '{other}'"))),
     }
 }

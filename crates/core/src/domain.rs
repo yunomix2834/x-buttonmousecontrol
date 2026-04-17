@@ -37,11 +37,18 @@ pub enum BindingAction {
     Tap,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum BindingMode {
+    Additive,
+    Replace,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Binding {
     pub trigger: Trigger,
     pub target: Target,
     pub action: BindingAction,
+    pub mode: BindingMode,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -53,4 +60,10 @@ pub struct BindingProfile {
 pub struct InputEvent {
     pub trigger: Trigger,
     pub phase: InputPhase,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InterceptDecision {
+    PassThrough,
+    Suppress,
 }

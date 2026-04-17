@@ -1,12 +1,15 @@
-use crate::{AppError, BindingProfile, InputEvent, KeySpec, MouseButton};
-use std::sync::mpsc::Sender;
+use crate::{
+    AppError, BindingProfile, InputEvent, InterceptDecision, KeySpec, MouseButton,
+};
 
 pub trait BindingRepository {
     fn load(&self) -> Result<BindingProfile, AppError>;
 }
 
-pub trait InputEventSource {
-    fn spawn(&self, tx: Sender<InputEvent>) -> Result<(), AppError>;
+pub trait InputInterceptor {
+    fn run<H>(&self, handler: H) -> Result<(), AppError>
+    where
+        H: FnMut(InputEvent) -> Result<InterceptDecision, AppError> + Send + 'static;
 }
 
 pub trait OutputEmitter {
