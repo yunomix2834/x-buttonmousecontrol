@@ -181,11 +181,11 @@ fn message_loop() -> Result<(), AppError> {
 fn map_xbutton(mouse_data: u32) -> Option<MouseButton> {
     let hi = ((mouse_data >> 16) & 0xffff) as u16;
     if hi == XBUTTON1 {
-        MouseButton::Back
+        Some(MouseButton::Back)
     } else if hi == XBUTTON2 {
-        MouseButton::Forward
+        Some(MouseButton::Forward)
     } else {
-        MouseButton::Unknown(hi as u32)
+        None
     }
 }
 
